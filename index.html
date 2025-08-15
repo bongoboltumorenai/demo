@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>বঙ্গবল্টু কে মারুন, বাকশাল ভাঙ্গুন — Modern</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-1: #0f1720; /* deep */
+      --bg-2: #102a43; /* teal-ish */
+      --glass: rgba(255,255,255,0.06);
+      --glass-2: rgba(255,255,255,0.08);
+      --accent: #ffcc00;
+      --primary: #28a745;
+      --muted: rgba(255,255,255,0.6);
+      --card-radius: 16px;
+      --shadow: 0 8px 30px rgba(2,6,23,0.7);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(135deg,var(--bg-1),var(--bg-2));font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial,sans-serif;color:#fff}
+
+    /* App container */
+    #app{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+
+    /* Game viewport */
+    #game{
+      width:100%;max-width:1100px;height:74vh;border-radius:20px;overflow:hidden;position:relative;box-shadow:var(--shadow);
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.02), transparent 8%), url('pic/bgpic.png');
+      background-size:cover;
+      transform-origin:center;display:none;
+    }
+
+    /* Soft vignette */
+    #game::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(800px 300px at 50% 20%, rgba(0,0,0,0.0), rgba(0,0,0,0.45));}
+
+    /* HUD */
+    #hud{position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;z-index:400}
+    .hud-panel{backdrop-filter:blur(6px);background:linear-gradient(180deg,var(--glass),var(--glass-2));padding:10px 14px;border-radius:12px;display:flex;gap:12px;align-items:center}
+    .hud-item{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--muted)}
+    .hud-item .label{font-weight:600;color:#fff}
+
+    /* Progress bar */
+    .progress{width:180px;background:rgba(255,255,255,0.08);height:10px;border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ffb84d);width:0%;transition:width 350ms ease}
+
+    /* Enemy & gun */
+    .enemy{position:absolute;width:120px;height:120px;object-fit:contain;left:50px;top:40px;transition:transform 160ms linear;will-change:transform;z-index:150}
+    .enemy.bounce{animation:floaty 2s ease-in-out infinite}
+    @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+
+    .gun{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);width:360px;height:160px;object-fit:contain;z-index:200;transition:left 120ms linear}
+
+    .bullet{position:absolute;width:28px;height:28px;object-fit:contain;z-index:220}
+
+    /* fire button (mobile) */
+    #controls{position:absolute;right:22px;bottom:20px;display:flex;flex-direction:column;gap:12px;z-index:500}
+    .circle-btn{width:70px;height:70px;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.04);backdrop-filter:blur(6px);cursor:pointer}
+    .circle-btn:active{transform:translateY(2px)}
+    .circle-btn img{width:46px;height:46px}
+
+    /* Welcome & End overlays */
+    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:600}
+    .panel{width:min(760px,92%);background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));padding:28px;border-radius:14px;box-shadow:var(--shadow);text-align:center}
+    .panel h1{margin:0 0 8px;font-size:2.6rem;letter-spacing:0.4px;color:#fff;text-shadow:0 6px 24px rgba(0,0,0,0.6)}
+    .panel p{margin:10px 0 18px;color:var(--muted);font-size:1.05rem}
+    .btn-primary{background:linear-gradient(90deg,var(--primary),#1ea34a);border:none;padding:12px 20px;border-radius:12px;color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:10px 16px;border-radius:12px;color:var(--muted);cursor:pointer}
+
+    /* settings & about */
+    #settingsBtn, #aboutBtn{position:absolute;top:18px;right:18px;background:transparent;border:none;color:var(--muted);z-index:700;font-size:1.1rem;padding:8px 10px;border-radius:10px}
+    #aboutBtn{right:120px}
+
+    /* small screens */
+    @media (max-width:720px){
+      .gun{width:260px;height:120px}
+      .enemy{width:92px;height:92px}
+      .hud-panel{padding:8px}
+      #game{height:76vh}
+      .circle-btn{width:72px;height:72px}
+    }
+
+    /* subtle entrance */
+    .fade-in{animation:fadeIn 420ms ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    /* muzzle flash */
+    .muzzle{position:absolute;width:80px;height:80px;pointer-events:none;z-index:260;opacity:0;transform-origin:center;transition:opacity 120ms linear,transform 120ms linear}
+
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <div id="game" aria-label="Game area">
+      <div id="hud">
+        <div class="hud-panel">
+          <div class="hud-item" title="Ammo">🔫 <span class="label">গুলি: <span id="ammo">50</span></span></div>
+          <div class="hud-item" title="Hits">🎯 <span class="label">হিট: <span id="hits">0</span>/<span id="required">18</span></span></div>
+        </div>
+        <div class="hud-panel">
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <div style="font-size:12px;color:var(--muted)">প্রগতি</div>
+            <div class="progress" aria-hidden><i id="progressBar"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <img id="enemy" class="enemy bounce" src="pic/terget.png" alt="enemy">
+      <img id="gun" class="gun" src="pic/gun.png" alt="gun">
+      <div id="muzzle" class="muzzle"><img src="pic/muzzle.png" alt="muzzle" style="width:100%;height:100%;object-fit:contain"></div>
+
+      <div id="controls" aria-hidden>
+        <button id="fireButton" class="circle-btn" aria-label="Fire button"><img src="pic/firebutton.png" alt="fire"></button>
+        <button id="leftBtn" class="circle-btn" aria-label="Left"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 6L9 12l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="rightBtn" class="circle-btn" aria-label="Right"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+
+    </div>
+
+    <!-- Welcome overlay -->
+    <div id="welcomeScreen" class="overlay">
+      <div class="panel fade-in">
+        <h1>বঙ্গবল্টু কে মারুন, বাকশাল ভাঙ্গুন</h1>
+        <p>১৯৭৫ সালের ১৫ আগস্ট ১৮ টা গুলির মাধ্যমে মুজিব স্বৈরাচারকে উৎখাত করা হয় </p>
+        <p>আপনার কাছে ৫০ গুলি থাকবে। <br>সঠিকভাবে ১৮ বার লক্ষ্য মারলেই আপনি জিতবেন।</p>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button id="startBtn" class="btn-primary">শুরু করুন</button>
+          <button id="howBtn" class="btn-ghost">কীভাবে খেলবেন?</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- End overlay -->
+    <div id="endScreen" class="overlay" style="display:none;align-items:center;justify-content:center">
+      <div class="panel" id="endPanel">
+        <img id="endImage" src="" alt="end" style="width:220px;height:220px;object-fit:contain;margin:0 auto 6px;display:block">
+        <h2 id="endText" style="margin-top:6px">আপনি জিতেছেন!</h2>
+        <p id="endDesc" style="color:var(--muted)"></p>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:10px">
+          <button id="playAgainBtn" class="btn-primary">পুনরায় খেলুন</button>
+          <button id="shareBtn" class="btn-ghost">শেয়ার করুন</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- settings & about buttons -->
+    <button id="settingsBtn" title="Settings">⚙️</button>
+    <button id="aboutBtn" title="About">ℹ️</button>
+
+    <!-- small panels -->
+    <div id="settingsPanel" style="position:absolute;top:66px;right:18px;background:var(--glass);padding:14px;border-radius:10px;display:none;z-index:750;backdrop-filter:blur(6px)">
+      <label style="font-size:13px;color:var(--muted)">ব্যাকগ্রাউন্ড সাউন্ড</label>
+      <input id="bgVolume" type="range" min="0" max="1" step="0.01" value="0.3" style="width:200px">
+      <label style="margin-top:8px;font-size:13px;color:var(--muted)">ফোজ/হিট সাউন্ড</label>
+      <input id="hitVolume" type="range" min="0" max="1" step="0.01" value="1" style="width:200px">
+    </div>
+
+    <div id="aboutPanel" style="position:absolute;top:66px;right:18px;background:var(--glass);padding:14px;border-radius:10px;display:none;z-index:750;backdrop-filter:blur(6px);width:260px;color:var(--muted)">
+      <div style="font-weight:700;color:#fff;margin-bottom:6px">অ্যাবাউট</div>
+      <div>© This website is made by Father Teresa </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <a href="https://www.facebook.com/link.diya.ki.hobe.bro" target="_blank" class="btn-ghost" style="padding:8px 10px;display:inline-block;text-decoration:none;color:inherit">📩 কন্টাক্ট</a>
+<button id="donateBtn" class="btn-primary" style="padding:8px 10px">Github</button>
+
+      </div>
+    </div>
+
+    <!-- audio -->
+    <audio id="audioBg" src="pic/bg.mp3" loop></audio>
+    <audio id="audioLose" src="pic/audiolose.mp3"></audio>
+    <audio id="audioHit" src="pic/hitsound.mp3"></audio>
+
+  </div>
+
+  <script>
+    // Elements
+    const game = document.getElementById('game');
+    const enemy = document.getElementById('enemy');
+    const gun = document.getElementById('gun');
+    const ammoDisplay = document.getElementById('ammo');
+    const hitsDisplay = document.getElementById('hits');
+    const progressBar = document.getElementById('progressBar');
+    const startBtn = document.getElementById('startBtn');
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const endScreen = document.getElementById('endScreen');
+    const endImage = document.getElementById('endImage');
+    const endText = document.getElementById('endText');
+    const endDesc = document.getElementById('endDesc');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const fireButton = document.getElementById('fireButton');
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+    const controls = document.getElementById('controls');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const aboutBtn = document.getElementById('aboutBtn');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const aboutPanel = document.getElementById('aboutPanel');
+    const contactBtn = document.getElementById('contactBtn');
+    const donateBtn = document.getElementById('donateBtn');
+    const audioBg = document.getElementById('audioBg');
+    const audioLose = document.getElementById('audioLose');
+    const audioHit = document.getElementById('audioHit');
+    const muzzle = document.getElementById('muzzle');
+
+    // State
+    let ammo = 50;
+    let hits = 0;
+    const requiredHits = 18;
+    const bulletImg = 'pic/bullet.png';
+    const enemyImgNormal = 'pic/terget.png';
+    const enemyImgHit = 'pic/tergetdownpic.png';
+    const muzzleOffset = {x:0,y:-10};
+
+    let bullets = [];
+    let gameRunning = false;
+    let isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+    // initial setup
+    document.getElementById('required').textContent = requiredHits;
+    ammoDisplay.textContent = ammo;
+    hitsDisplay.textContent = hits;
+    audioBg.volume = 0.3; audioHit.volume = 1; audioLose.volume = 1;
+
+    // Show controls only on mobile
+    if (!isMobile) controls.style.display = 'none';
+
+    // Helpers
+    function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+    function updateHUD(){
+      ammoDisplay.textContent = ammo;
+      hitsDisplay.textContent = hits;
+      const pct = Math.round((hits/requiredHits)*100);
+      progressBar.style.width = pct + '%';
+    }
+
+    function playHitSound(){ audioHit.currentTime = 0; audioHit.play(); }
+    function playLoseSound(){ audioLose.currentTime = 0; audioLose.play(); }
+
+    // Enemy movement using smooth interpolation
+    let enemyPos = {x:100,y:60};
+    let enemyTarget = {x:100,y:60};
+    let enemySpeed = 0.07; // lower = smoother/slower
+
+    setInterval(()=>{
+      if (!gameRunning) return;
+      const w = Math.max(200, game.clientWidth - enemy.clientWidth);
+      enemyTarget.x = Math.random() * w;
+      enemyTarget.y = Math.random() * (game.clientHeight/3);
+    },900);
+
+    function updateEnemy(){
+      enemyPos.x += (enemyTarget.x - enemyPos.x) * enemySpeed;
+      enemyPos.y += (enemyTarget.y - enemyPos.y) * (enemySpeed*0.6);
+      enemy.style.left = enemyPos.x + 'px';
+      enemy.style.top = enemyPos.y + 'px';
+    }
+
+    // Bullets update
+    function updateBullets(){
+      for (let i = bullets.length-1; i>=0; i--){
+        const b = bullets[i];
+        b.y -= 16; // speed
+        b.el.style.top = b.y + 'px';
+
+        const bRect = b.el.getBoundingClientRect();
+        const eRect = enemy.getBoundingClientRect();
+        if (bRect.left < eRect.right && bRect.right > eRect.left && bRect.top < eRect.bottom && bRect.bottom > eRect.top){
+          // hit
+          if (!b.hit){
+            hits++;
+            updateHUD();
+            playHitSound();
+            enemy.src = enemyImgHit;
+            setTimeout(()=>enemy.src = enemyImgNormal,700);
+            if (hits >= requiredHits) endGame(true);
+          }
+          b.el.remove(); bullets.splice(i,1);
+        } else if (b.y < -40){
+          b.el.remove(); bullets.splice(i,1);
+        }
+      }
+    }
+
+    // Shooting
+    function showMuzzle(x,y){
+      muzzle.style.left = (x - muzzle.clientWidth/2 + muzzleOffset.x) + 'px';
+      muzzle.style.top = (y - muzzle.clientHeight/2 + muzzleOffset.y) + 'px';
+      muzzle.style.opacity = 1; muzzle.style.transform = 'scale(1.1)';
+      setTimeout(()=>{muzzle.style.opacity = 0; muzzle.style.transform='scale(0.8)';},120);
+    }
+
+    function shoot(){
+      if (!gameRunning) return;
+      if (ammo <= 0) return;
+      const offsets = [-18,0,18];
+      offsets.forEach(off=>{
+        const b = document.createElement('img');
+        b.src = bulletImg; b.className = 'bullet';
+        const gunRect = gun.getBoundingClientRect();
+        b.style.left = (gunRect.left + gunRect.width/2 + off - 14) + 'px';
+        b.style.top = (gunRect.top + 10) + 'px';
+        document.getElementById('game').appendChild(b);
+        bullets.push({el:b,y:gunRect.top + 10,hit:false});
+      });
+
+      ammo -= 1; updateHUD();
+      // muzzle at gun tip
+      const gunRect = gun.getBoundingClientRect();
+      const mx = gunRect.left + gunRect.width/2; const my = gunRect.top + 24;
+      showMuzzle(mx,my);
+      if (ammo <= 0 && hits < requiredHits) endGame(false);
+    }
+
+    // End game
+    function endGame(win){
+      gameRunning = false;
+      game.style.display = 'none';
+      endScreen.style.display = 'flex';
+      settingsPanel.style.display = 'none'; aboutPanel.style.display='none';
+      audioBg.pause(); audioBg.currentTime = 0;
+      if (win){
+        endImage.src = 'pic/mistiprize.png';
+        endText.textContent = 'অভিনন্দন!';
+        endDesc.textContent = 'আপনি একজন মেজর ডালিম। আপনি মাত্রই বাংলার মানুষকে বাকশাল থেকে মুক্ত করলেন, ধন্যবাদ।';
+      } else {
+        endImage.src = 'pic/lose.png';
+        endText.textContent = 'ওহো, বাকি ছিল!';
+        endDesc.textContent = 'গুলি শেষ হয়ে গিয়েছে — আবার চেষ্টা করুন।';
+        playLoseSound();
+      }
+    }
+
+    // Reset / Start
+    function resetGame(){
+      // clear bullets
+      bullets.forEach(b=>b.el.remove()); bullets = [];
+      ammo = 50; hits = 0; updateHUD();
+      enemyPos = {x:80,y:50}; enemyTarget = {...enemyPos};
+      enemy.style.left = enemyPos.x + 'px'; enemy.style.top = enemyPos.y + 'px';
+      game.style.display = 'block'; welcomeScreen.style.display='none'; endScreen.style.display='none';
+      gameRunning = true; audioBg.play();
+    }
+
+    // Main loop
+    function gameLoop(){
+      if (gameRunning){
+        updateEnemy(); updateBullets();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+
+    // Events
+    startBtn.addEventListener('click', ()=>{ resetGame(); });
+    playAgainBtn.addEventListener('click', ()=>{ resetGame(); });
+
+    // Keyboard controls
+    let gunX = (window.innerWidth/2) - 180;
+    function updateGunPos(){
+      const max = game.clientWidth - gun.clientWidth;
+      const left = clamp(gunX, 8, max - 8);
+      gun.style.left = left + 'px';
+    }
+
+    window.addEventListener('keydown',(e)=>{
+      if (!gameRunning) return;
+      if (e.code === 'ArrowLeft'){ gunX -= 40; updateGunPos(); }
+      else if (e.code === 'ArrowRight'){ gunX += 40; updateGunPos(); }
+      else if (e.code === 'Space'){ e.preventDefault(); shoot(); }
+    });
+
+    // touch / mobile controls
+    let touchStartX = null;
+    game.addEventListener('touchstart',(e)=>{ touchStartX = e.touches[0].clientX; });
+    game.addEventListener('touchmove',(e)=>{ if (touchStartX===null) return; const tx = e.touches[0].clientX; gunX += (tx - touchStartX); touchStartX = tx; updateGunPos(); });
+    game.addEventListener('touchend',()=>{ touchStartX = null; });
+
+    // UI buttons
+    fireButton.addEventListener('click', ()=>shoot());
+    leftBtn.addEventListener('mousedown', ()=>{gunX -= 26; updateGunPos();});
+    rightBtn.addEventListener('mousedown', ()=>{gunX += 26; updateGunPos();});
+
+    // mouse / pointer for desktop: drag gun
+    let dragging = false;
+    gun.addEventListener('mousedown',(e)=>{ dragging=true; e.preventDefault(); });
+    window.addEventListener('mousemove',(e)=>{ if (!dragging) return; gunX = e.clientX - (gun.clientWidth/2); updateGunPos(); });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+
+    // settings toggles
+    settingsBtn.addEventListener('click',()=>{ settingsPanel.style.display = settingsPanel.style.display==='none'?'block':'none'; aboutPanel.style.display='none'; });
+    aboutBtn.addEventListener('click',()=>{ aboutPanel.style.display = aboutPanel.style.display==='none'?'block':'none'; settingsPanel.style.display='none'; });
+    
+    // volume controls
+    document.getElementById('bgVolume').addEventListener('input',(e)=>{ audioBg.volume = parseFloat(e.target.value); });
+    document.getElementById('hitVolume').addEventListener('input',(e)=>{ audioHit.volume = parseFloat(e.target.value); audioLose.volume = parseFloat(e.target.value); });
+
+    // share (simple) and accessibility
+    shareBtn.addEventListener('click',()=>{
+      try{
+        navigator.share && navigator.share({title:'বঙ্গবল্টু কে মারুন, বাকশাল ভাঙ্গুন',text:'চলো আমি আপনাকে চ্যালেঞ্জ দিলাম!',url:location.href});
+      }catch(e){ alert('আপনার ব্রাউজার শেয়ার সমর্থন করে না।'); }
+    });
+
+    // initial layout adjustments
+    window.addEventListener('resize',()=>{ updateGunPos(); });
+
+    // initial show welcome
+    game.style.display = 'none'; welcomeScreen.style.display = 'flex'; endScreen.style.display='none';
+
+  </script>
+</body>
+</html>
